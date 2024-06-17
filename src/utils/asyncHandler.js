@@ -1,4 +1,10 @@
- 
+export default asyncHandler = (requestHandler) => {
+    return (req, res, next) => {
+        Promise
+            .resolve(requestHandler(req, res, next))
+            .reject((error) => next(error))
+    }
+}
 
 // export { asyncHandler }
 
@@ -15,7 +21,7 @@ const asyncHandler = (func) => {
                 message: error.message
             })
         }
-    } 
+    }
 }
 */
 //2 
