@@ -1,4 +1,4 @@
-class ApiResponse {
+export class ApiResponse {
     constructor(
         statusCode,
         data,
