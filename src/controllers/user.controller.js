@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
+import cleanUpFiles from "../utils/cleanUpFiles.js"
 
 const registerUser = asyncHandler(async (req, res) => {
     /*
@@ -22,8 +23,9 @@ const registerUser = asyncHandler(async (req, res) => {
 
     // check user details
     if (
-        [ username, email, password, fullName ].some((field) => field?.trim() === "" )
+        [ username, email, password, fullName ].some((field) => field?.trim() === "" || field === undefined )
     ) {
+        cleanUpFiles(req) // cleanup the temp file if error occurs
         throw new ApiError(400, "All fields are required")
     }
 
@@ -33,19 +35,21 @@ const registerUser = asyncHandler(async (req, res) => {
     })
 
     if (existedUser) {
+        cleanUpFiles(req) // cleanup the temp file if error occurs
         throw new ApiError(409, "User with email or username already exists")
     }
 
     // get avatar and coverImage lacal path 
     const avatarLocalPath = req.files?.avatar[0]?.path
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path // more checks while access a empty array
 
 
-    let coverImageLocalPath;
+    // let coverImageLocalPath;
 
-    // check for the coverImage file path
-    if ( req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0 ) {
-        coverImageLocalPath = req.files.coverImage[0].path
-    }
+    // // check for the coverImage file path
+    // if ( req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0 ) {
+    //     coverImageLocalPath = req.files.coverImage[0].path
+    // }
 
     if ( !avatarLocalPath ) {
         throw new ApiError(400, "Avatar file is required")
