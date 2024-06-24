@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import cleanUpFiles from "../utils/cleanUpFiles.js"
+import jwt from "jsonwebtoken"
 
 // for secure cookies
 const options = {
@@ -13,11 +14,11 @@ const options = {
 
 // create access and refresh token
 
-const generateAccessAndRefreshTokens = async(userId) => {
+const generateAccessAndRefreshTokens = async (userId) => {
     try {
-        const user = User.findById(userId)
-        const accessToken = user.generateAccessToken()
-        const refreshToken = user.genrateRefreshToken()
+        const user = await User.findById(userId)
+        const accessToken = await user.generateAccessToken()
+        const refreshToken = await user.generateRefreshToken()
 
         user.refreshToken = refreshToken // save the refresh token in the user object
         await user.save({ validateBeforeSave: false }) // then update in model but while save the refresh token in model it also required all the fileds but we only update the refresh toke filed so to avoid that error we use ( validateBeforeSave: false )
@@ -149,7 +150,7 @@ const loginUser = asyncHandler( async (req,res) => {
 
         const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
 
-        const loggedInUser = await User.findById(user._id).select("-password - refreshToken") // modified user object where refresh token is added
+        const loggedInUser = await User.findById(user._id).select("-password -refreshToken") // modified user object where refresh token is added
 
 
         return  res.status(200)
@@ -187,5 +188,38 @@ const logoutUser = asyncHandler( async (req,res) => {
 
 })
 
-export { registerUser, loginUser, logoutUser }
+const refreshAccessToken = asyncHandler( async (req,res) => {
+
+    const incomingRefreshToken  = req.cookies?.refreshToken || req.body?.refreshToken // get the refresh token from cookies or from body
+
+    if ( !incomingRefreshToken ) {
+        throw new ApiError(401, "Unauthorized request")
+    }
+    
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+
+    const user = await User.findById(decodedToken?._id) // get the user from decoded refresh token 
+
+    if ( !user ) {
+        throw new ApiError(401, "Invalid refresh token")
+    }
+
+    if ( incomingRefreshToken !== user?.refreshToken ) {
+        throw new ApiError(401, "Refresh token is expired or used")
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user._id)
+
+    return  res.status(200)
+                .cookie("accessToken", accessToken, options)
+                .cookie("refreshToken", newRefreshToken, options)
+                .json(
+                    new ApiResponse(200, {
+                        accessToken, newRefreshToken
+                    }, "Access token refreshed successfully")
+                )
+
+})
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken }
 
