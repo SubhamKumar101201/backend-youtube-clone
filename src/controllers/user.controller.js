@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import cleanUpFiles from "../utils/cleanUpFiles.js"
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose"
 
 // for secure cookies
 const options = {
@@ -372,6 +373,8 @@ const updateUserCoverImage = asyncHandler( async (req,res) => {
 
 })
 
+// get user channel details
+
 const getUserChannelProfile = asyncHandler( async (req,res) => {
 
     const { username } = req.params
@@ -447,6 +450,59 @@ const getUserChannelProfile = asyncHandler( async (req,res) => {
 
 })
 
+//  get channel watch history
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile }
+const getWatchHistory = asyncHandler ( async (req,res) => {
+
+    const user = await User.aggregate([
+        {
+            $match: {
+                 _id: new mongoose.Types.ObjectId.createFromTime(req.user._Id) 
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        username: 1,
+                                        fullName: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: { $arrayElemAt: ['$owner', 0] }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    if ( !user?.length ) {
+        throw new ApiError(400, "User data is missing")
+    }
+
+    return res.status(200)
+                .json(new ApiResponse(200, user[0].watchHistory, "Watch history fetched successfully"))
+
+})
+
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory }
 
