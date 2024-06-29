@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 import cleanUpFiles from "../utils/cleanUpFiles.js"
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
+import { deleteFileFromCloudinary } from "../utils/cleanUpFileFromCloundinary.js"
 
 // for secure cookies
 const options = {
@@ -175,8 +176,8 @@ const logoutUser = asyncHandler( async (req,res) => {
     await User.findByIdAndUpdate( 
         req.user._id,
         {
-            $set: {
-                refreshToken: undefined
+            $unset: {
+                refreshToken: 1 // remove refresh token from document when user logout
             }
         },
         {
@@ -307,7 +308,7 @@ const updateAccountDetails = asyncHandler( async (req,res) => {
 
 const updateUserAvatar = asyncHandler( async (req,res) => {
     // for update user avatar
-    const { avatarLocalPath } = req.file?.path
+    const  avatarLocalPath  = req.file?.path
 
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is missing")
@@ -327,12 +328,22 @@ const updateUserAvatar = asyncHandler( async (req,res) => {
                 avatar: avatar?.url
             }
         },
-        { new:true }
+        // { new:true } // get the updated document
     ).select("-password -refreshToken")
 
     if ( !user ) {
         throw new ApiError(400, "Error while update avatar")
     }
+
+    if ( user?.avatar ) {
+
+        // console.log(user?.avatar.split('/').pop().split('.')[0])
+
+        await deleteFileFromCloudinary( user?.avatar.split('/').pop().split('.')[0] ) // delete old avatar
+    
+    }
+
+    user.avatar = avatar?.url // change the old url with new one
 
     return res.status(200)
                 .json(new ApiResponse(200, user, "Avatar updated successfully"))
@@ -341,9 +352,9 @@ const updateUserAvatar = asyncHandler( async (req,res) => {
 
 const updateUserCoverImage = asyncHandler( async (req,res) => {
     // for update user avatar
-    const { coverImageLocalPath } = req.file?.path
+    const  coverImageLocalPath  = req.file?.path
 
-    if (!avatarLocalPath) {
+    if (!coverImageLocalPath) {
         throw new ApiError(400, "Cover image file is missing")
     }
 
@@ -361,12 +372,22 @@ const updateUserCoverImage = asyncHandler( async (req,res) => {
                 coverImage: coverImage?.url
             }
         },
-        { new:true }
+        // { new:true }
     ).select("-password -refreshToken")
 
     if ( !user ) {
         throw new ApiError(400, "Error while update cover image")
     }
+
+    if ( user?.coverImage ) {
+
+        // console.log(user?.coverImage.split('/').pop().split('.')[0])
+
+        await deleteFileFromCloudinary( user?.coverImage.split('/').pop().split('.')[0] ) // delete old avatar
+    
+    }
+
+    user.coverImage = coverImage?.url // change the old url with new one
 
     return res.status(200)
                 .json(new ApiResponse(200, user, "Cover image updated successfully"))
