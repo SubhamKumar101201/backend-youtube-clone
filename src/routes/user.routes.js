@@ -1,5 +1,17 @@
 import { Router } from "express"
-import { changeCurrentPassword, getCurrentUser, loginUser, logoutUser, refreshAccessToken, registerUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage } from "../controllers/user.controller.js"
+import { 
+    changeCurrentPassword, 
+    getCurrentUser, 
+    getUserChannelProfile, 
+    getUserWatchHistory, 
+    loginUser, 
+    logoutUser, 
+    refreshAccessToken, 
+    registerUser, 
+    updateAccountDetails, 
+    updateUserAvatar, 
+    updateUserCoverImage 
+} from "../controllers/user.controller.js"
 import { upload } from '../middlewares/multer.middleware.js'
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
@@ -48,12 +60,18 @@ router.route('/change-password').post( verifyJWT, changeCurrentPassword )
 router.route('/current-user').get( verifyJWT, getCurrentUser )
 
 // update account details route
-router.route('/update-account').post( verifyJWT, updateAccountDetails )
+router.route('/update-account').patch( verifyJWT, updateAccountDetails )
 
 // update user avatar route
-router.route('/update-avatar').post( verifyJWT, upload.single('avatar'), updateUserAvatar )
+router.route('/update-avatar').patch( verifyJWT, upload.single('avatar'), updateUserAvatar )
 
 // update cover image route 
-router.route('/update-cover-image').post( verifyJWT, upload.single('coverImage'), updateUserCoverImage )
+router.route('/update-cover-image').patch( verifyJWT, upload.single('coverImage'), updateUserCoverImage )
+
+// get user channel profile
+router.route('/channel-profile/:username').get( verifyJWT, getUserChannelProfile )
+
+// get user watch history
+router.route('/watch-history').get( verifyJWT, getUserWatchHistory )
 
 export default router
