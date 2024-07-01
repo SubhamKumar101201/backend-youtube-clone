@@ -1,12 +1,11 @@
 import asyncHandler from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import cleanUpFiles from "../utils/cleanUpFiles.js"
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
-import { deleteFileFromCloudinary } from "../utils/cleanUpFileFromCloundinary.js"
 
 // for secure cookies
 const options = {
@@ -95,8 +94,14 @@ const registerUser = asyncHandler(async (req, res) => {
     // create user object and create a entry in db
     const user = await User.create({
         fullName,
-        avatar: avatar.url,
-        coverImage: coverImage?.url || "", // optional
+        avatar: {
+            publicId: avatar.public_id,
+            url: avatar.secure_url
+        },
+        coverImage: {
+            publicId: coverImage.public_id || "",
+            url: coverImage.secure_url || ""
+        }, // optional
         email,
         password,
         username: username.toLowerCase()
@@ -329,7 +334,10 @@ const updateUserAvatar = asyncHandler( async (req,res) => {
         req.user?._id,
         {
             $set: {
-                avatar: avatar?.url
+                avatar: {
+                    publicId: avatar?.public_id,
+                    url: avatar?.secure_url
+                }
             }
         },
         // { new:true } // get the updated document
@@ -339,15 +347,16 @@ const updateUserAvatar = asyncHandler( async (req,res) => {
         throw new ApiError(400, "Error while update avatar")
     }
 
-    if ( user?.avatar ) {
+    if ( user?.avatar.publicId ) {
 
         // console.log(user?.avatar.split('/').pop().split('.')[0])
 
-        await deleteFileFromCloudinary( user?.avatar.split('/').pop().split('.')[0] ) // delete old avatar
+        await deleteOnCloudinary( user?.avatar.publicId ) // delete old avatar
     
     }
 
-    user.avatar = avatar?.url // change the old url with new one
+    user.avatar.publicId = avatar?.public_id // change the old url with new one
+    user.avatar.url = avatar?.secure_url // change the old url with new one
 
     return res.status(200)
                 .json(new ApiResponse(200, user, "Avatar updated successfully"))
@@ -373,7 +382,10 @@ const updateUserCoverImage = asyncHandler( async (req,res) => {
         req.user?._id,
         {
             $set: {
-                coverImage: coverImage?.url
+                coverImage: {
+                    publicId: coverImage.public_id,
+                    url: coverImage.secure_url
+                }
             }
         },
         // { new:true }
@@ -383,15 +395,16 @@ const updateUserCoverImage = asyncHandler( async (req,res) => {
         throw new ApiError(400, "Error while update cover image")
     }
 
-    if ( user?.coverImage ) {
+    if ( user?.coverImage.publicId ) {
 
         // console.log(user?.coverImage.split('/').pop().split('.')[0])
 
-        await deleteFileFromCloudinary( user?.coverImage.split('/').pop().split('.')[0] ) // delete old avatar
+        await deleteOnCloudinary( user?.coverImage.publicId ) // delete old avatar
     
     }
 
-    user.coverImage = coverImage?.url // change the old url with new one
+    user.coverImage.publicId = coverImage?.public_id // change the old url with new one
+    user.coverImage.url = coverImage?.secure_url
 
     return res.status(200)
                 .json(new ApiResponse(200, user, "Cover image updated successfully"))
