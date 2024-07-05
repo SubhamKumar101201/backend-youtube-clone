@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { deleteVideo, getVideoById, publishAVideo, togglePublishStatus, updateVideo } from "../controllers/video.controller.js";
+import { deleteVideo, getAllVideos, getVideoById, publishAVideo, togglePublishStatus, updateVideo } from "../controllers/video.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
@@ -12,7 +12,9 @@ router.use(verifyJWT)
 // -------- secured routes --------- //
 
 // publish a video route
-router.route('/').post(upload.fields([
+router.route('/')
+    .get(getAllVideos)
+    .post(upload.fields([
     {
         name: "videoFile",
         maxCount: 1
