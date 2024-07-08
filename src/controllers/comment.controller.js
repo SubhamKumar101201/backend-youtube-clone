@@ -6,10 +6,96 @@ import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import { Like } from "../models/like.model.js"
 
+// get all comments for a video
+
 const getVideoComments = asyncHandler(async (req, res) => {
-    //TODO: get all comments for a video
+ 
     const {videoId} = req.params
     const {page = 1, limit = 10} = req.query
+
+    if(!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video id")
+    }
+
+    const video = await Video.findById(videoId)
+
+    if(!video) {
+        throw new ApiError(404, "Video not found")
+    }
+
+    const pipeline = [
+        {
+            $match: {
+                video: new mongoose.Types.ObjectId(video._id)   // get all the comments of this perticular videoId
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",        // lookup from users schema for owner of all the respective comments document from previous match aggregation
+                as: "owner" 
+            }       
+        },
+        {
+           $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "comment",    // then after getting owner now lookup for comments like from likes schema for each respective comments from match aggregation
+                as: "likes"
+           } 
+        },
+        {
+            $addFields: {                   // here add fields like count, owner of the comment, and is this LoggedIn user liked the comment or not
+                likesCount: {
+                    $size: "$likes"
+                },
+                owner: {
+                    $first: "$owner"
+                },
+                isLiked: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$likes.likedBy"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1       // show all the comments in descending order most recent comments come first
+            }
+        },
+        {
+            $project: {
+                content: 1,
+                createdAt: 1,
+                likesCount: 1,
+                owner: {
+                    username: 1,
+                    fullName: 1,
+                    "avatar.url": 1
+                },
+                isLiked: 1,
+            }
+        }
+    ]
+
+    const videoComments = await Comment.aggregatePaginate(
+        Comment.aggregate(pipeline),
+        {
+            page: parseInt(page, 10),
+            limit: parseInt(limit,10)
+        }
+    )
+
+    if(!videoComments) {
+        throw new Error('No comments found')
+    }
+
+    return res.status(200)
+                .json(new ApiResponse(200, videoComments, "Comments fetched successfully"))
 
 })
 
