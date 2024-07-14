@@ -170,7 +170,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         }
     ])   
     
-    if(playlistVideos.length < 0) {
+    if(!playlistVideos) {
         throw new ApiError(500, "Failed to fetch videos for playlist")
     }
 
